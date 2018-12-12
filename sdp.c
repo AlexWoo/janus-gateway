@@ -1096,7 +1096,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 	janus_sdp_attribute *a = janus_sdp_attribute_create("group", "%s", buffer);
 	anon->attributes = g_list_insert_before(anon->attributes, first, a);
 	/* msid-semantic: add new global attribute */
-	a = janus_sdp_attribute_create("msid-semantic", " WMS janus");
+	a = janus_sdp_attribute_create("msid-semantic", " WMS %lu", handle->handle_id);
 	anon->attributes = g_list_insert_before(anon->attributes, first, a);
 	/* ICE Full or Lite? */
 	if(janus_ice_is_ice_lite_enabled()) {
@@ -1290,7 +1290,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 				(m->direction == JANUS_SDP_DEFAULT || m->direction == JANUS_SDP_SENDRECV || m->direction == JANUS_SDP_SENDONLY)) {
 			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" cname:janusaudio", stream->audio_ssrc);
 			m->attributes = g_list_append(m->attributes, a);
-			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" msid:janus janusa0", stream->audio_ssrc);
+			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" msid:%lu janusa0", stream->audio_ssrc, handle->handle_id);
 			m->attributes = g_list_append(m->attributes, a);
 			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" mslabel:janus", stream->audio_ssrc);
 			m->attributes = g_list_append(m->attributes, a);
@@ -1300,7 +1300,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 				(m->direction == JANUS_SDP_DEFAULT || m->direction == JANUS_SDP_SENDRECV || m->direction == JANUS_SDP_SENDONLY)) {
 			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" cname:janusvideo", stream->video_ssrc);
 			m->attributes = g_list_append(m->attributes, a);
-			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" msid:janus janusv0", stream->video_ssrc);
+			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" msid:%lu janusv0", stream->video_ssrc, handle->handle_id);
 			m->attributes = g_list_append(m->attributes, a);
 			a = janus_sdp_attribute_create("ssrc", "%"SCNu32" mslabel:janus", stream->video_ssrc);
 			m->attributes = g_list_append(m->attributes, a);
@@ -1310,7 +1310,7 @@ char *janus_sdp_merge(void *ice_handle, janus_sdp *anon, gboolean offer) {
 				/* Add rtx SSRC group to negotiate the RFC4588 stuff */
 				a = janus_sdp_attribute_create("ssrc", "%"SCNu32" cname:janusvideo", stream->video_ssrc_rtx);
 				m->attributes = g_list_append(m->attributes, a);
-				a = janus_sdp_attribute_create("ssrc", "%"SCNu32" msid:janus janusv0", stream->video_ssrc_rtx);
+				a = janus_sdp_attribute_create("ssrc", "%"SCNu32" msid:%lu janusv0", stream->video_ssrc_rtx, handle->handle_id);
 				m->attributes = g_list_append(m->attributes, a);
 				a = janus_sdp_attribute_create("ssrc", "%"SCNu32" mslabel:janus", stream->video_ssrc_rtx);
 				m->attributes = g_list_append(m->attributes, a);
