@@ -1337,6 +1337,7 @@ typedef struct janus_videoroom_publisher {
 	guint64 user_id;	/* Unique ID in the room */
 	guint32 pvt_id;		/* This is sent to the publisher for mapping purposes, but shouldn't be shared with others */
 	gchar *display;		/* Display name (just for fun) */
+	gchar *uid;		/* user defined user_id */
 	gchar *sdp;			/* The SDP this publisher negotiated, if any */
 	gboolean audio, video, data;		/* Whether audio, video and/or data is going to be sent by this publisher */
 	janus_audiocodec acodec;	/* Audio codec this publisher is using */
@@ -2120,6 +2121,9 @@ static void janus_videoroom_participant_joining(janus_videoroom_publisher *p) {
 		json_object_set_new(user, "id", json_integer(p->user_id));
 		if (p->display) {
 			json_object_set_new(user, "display", json_string(p->display));
+		}
+		if (p->uid) {
+			json_object_set_new(user, "uid", json_string(p->uid));
 		}
 		json_object_set_new(event, "videoroom", json_string("event"));
 		json_object_set_new(event, "room", json_integer(p->room_id));
@@ -3696,6 +3700,8 @@ void janus_videoroom_setup_media(janus_plugin_session *handle) {
 			json_object_set_new(pl, "id", json_integer(participant->user_id));
 			if(participant->display)
 				json_object_set_new(pl, "display", json_string(participant->display));
+			if(participant->uid)
+				json_object_set_new(pl, "uid", json_string(participant->uid));
 			if(participant->audio)
 				json_object_set_new(pl, "audio_codec", json_string(janus_audiocodec_name(participant->acodec)));
 			if(participant->video)
@@ -4430,6 +4436,8 @@ static void *janus_videoroom_handler(void *data) {
 				const char *display_text = display ? json_string_value(display) : NULL;
 				guint64 user_id = 0;
 				json_t *id = json_object_get(root, "id");
+				json_t *uid = json_object_get(root, "uid");
+				const char *uid_text = uid ? json_string_value(uid) : NULL;
 				if(id) {
 					user_id = json_integer_value(id);
 					if(g_hash_table_lookup(videoroom->participants, &user_id) != NULL) {
@@ -4473,6 +4481,7 @@ static void *janus_videoroom_handler(void *data) {
 				videoroom = NULL;
 				publisher->user_id = user_id;
 				publisher->display = display_text ? g_strdup(display_text) : NULL;
+				publisher->uid = uid_text ? g_strdup(uid_text) : NULL;
 				publisher->sdp = NULL;		/* We'll deal with this later */
 				publisher->audio = FALSE;	/* We'll deal with this later */
 				publisher->video = FALSE;	/* We'll deal with this later */
@@ -4566,6 +4575,8 @@ static void *janus_videoroom_handler(void *data) {
 					json_object_set_new(pl, "id", json_integer(p->user_id));
 					if(p->display)
 						json_object_set_new(pl, "display", json_string(p->display));
+					if(p->uid != NULL)
+						json_object_set_new(pl, "uid", json_string(p->uid));
 					if(p->audio)
 						json_object_set_new(pl, "audio_codec", json_string(janus_audiocodec_name(p->acodec)));
 					if(p->video)
