@@ -382,7 +382,7 @@ function registerUsername() {
 			$('#register').removeAttr('disabled').click(registerUsername);
 			return;
 		}
-		var register = { "request": "join", "room": myroom, "ptype": "publisher", "display": username, "bridgeid": "test" };
+		var register = { "request": "join", "room": myroom, "ptype": "publisher", "display": username, "uid": username };
 		myusername = username;
 		sfutest.send({"message": register});
 	}
