@@ -1337,7 +1337,8 @@ typedef struct janus_videoroom_publisher {
 	guint64 user_id;	/* Unique ID in the room */
 	guint32 pvt_id;		/* This is sent to the publisher for mapping purposes, but shouldn't be shared with others */
 	gchar *display;		/* Display name (just for fun) */
-	gchar *uid;		/* user defined user_id */
+	gchar *uid;			/* user defined user_id */
+	gchar *bridgeid;	/* for bridge, if bridgeid is same as new publisher, do not notify participant */
 	gchar *sdp;			/* The SDP this publisher negotiated, if any */
 	gboolean audio, video, data;		/* Whether audio, video and/or data is going to be sent by this publisher */
 	janus_audiocodec acodec;	/* Audio codec this publisher is using */
@@ -1466,6 +1467,8 @@ static void janus_videoroom_publisher_free(const janus_refcount *p_ref) {
 	p->display = NULL;
 	g_free(p->uid);
 	p->uid = NULL;
+	g_free(p->bridgeid);
+	p->bridgeid = NULL;
 	g_free(p->sdp);
 	p->sdp = NULL;
 	g_free(p->recording_base);
@@ -2106,6 +2109,11 @@ static void janus_videoroom_notify_participants(janus_videoroom_publisher *parti
 	while (participant->room && !g_atomic_int_get(&participant->room->destroyed) && g_hash_table_iter_next(&iter, NULL, &value)) {
 		janus_videoroom_publisher *p = value;
 		if(p && p->session && p != participant) {
+			/* if participant has same bridgeid with new publisher, do not add in publishers list */
+			if(participant->bridgeid && p->bridgeid && !strcasecmp(participant->bridgeid, p->bridgeid)) {
+				JANUS_LOG(LOG_VERB, "Participant %"SCNu64" and new publisher %"SCNu64" has same bridgeid (%s) in notify participant\n", p->user_id, participant->user_id, p->bridgeid);
+				continue;
+			}
 			JANUS_LOG(LOG_VERB, "Notifying participant %"SCNu64" (%s)\n", p->user_id, p->display ? p->display : "??");
 			int ret = gateway->push_event(p->session->handle, &janus_videoroom_plugin, NULL, msg, NULL);
 			JANUS_LOG(LOG_VERB, "  >> %d (%s)\n", ret, janus_get_api_error(ret));
@@ -2126,6 +2134,9 @@ static void janus_videoroom_participant_joining(janus_videoroom_publisher *p) {
 		}
 		if (p->uid) {
 			json_object_set_new(user, "uid", json_string(p->uid));
+		}
+		if (p->bridgeid) {
+			json_object_set_new(user, "bridgeid", json_string(p->bridgeid));
 		}
 		json_object_set_new(event, "videoroom", json_string("event"));
 		json_object_set_new(event, "room", json_integer(p->room_id));
@@ -3704,6 +3715,8 @@ void janus_videoroom_setup_media(janus_plugin_session *handle) {
 				json_object_set_new(pl, "display", json_string(participant->display));
 			if(participant->uid)
 				json_object_set_new(pl, "uid", json_string(participant->uid));
+			if(participant->bridgeid)
+				json_object_set_new(pl, "bridge", json_string(participant->bridgeid));
 			if(participant->audio)
 				json_object_set_new(pl, "audio_codec", json_string(janus_audiocodec_name(participant->acodec)));
 			if(participant->video)
@@ -4440,6 +4453,8 @@ static void *janus_videoroom_handler(void *data) {
 				json_t *id = json_object_get(root, "id");
 				json_t *uid = json_object_get(root, "uid");
 				const char *uid_text = uid ? json_string_value(uid) : NULL;
+				json_t *bridgeid = json_object_get(root, "bridgeid");
+				const char *bridgeid_text = bridgeid ? json_string_value(bridgeid) : NULL;
 				if(id) {
 					user_id = json_integer_value(id);
 					if(g_hash_table_lookup(videoroom->participants, &user_id) != NULL) {
@@ -4484,6 +4499,7 @@ static void *janus_videoroom_handler(void *data) {
 				publisher->user_id = user_id;
 				publisher->display = display_text ? g_strdup(display_text) : NULL;
 				publisher->uid = uid_text ? g_strdup(uid_text) : NULL;
+				publisher->bridgeid = bridgeid_text ? g_strdup(bridgeid_text) : NULL;
 				publisher->sdp = NULL;		/* We'll deal with this later */
 				publisher->audio = FALSE;	/* We'll deal with this later */
 				publisher->video = FALSE;	/* We'll deal with this later */
@@ -4571,6 +4587,11 @@ static void *janus_videoroom_handler(void *data) {
 				while (!g_atomic_int_get(&publisher->room->destroyed) && g_hash_table_iter_next(&iter, NULL, &value)) {
 					janus_videoroom_publisher *p = value;
 					if(p == publisher || !p->sdp || !p->session->started) {
+						continue;
+					}
+					/* if participant has same bridgeid with new publisher, do not add in publishers list */
+					if(bridgeid_text && p->bridgeid && !strcasecmp(bridgeid_text, p->bridgeid)) {
+						JANUS_LOG(LOG_VERB, "Participant %"SCNu64" and new publisher %"SCNu64" has same bridgeid (%s) in publisher join\n", p->user_id, publisher->user_id, p->bridgeid);
 						continue;
 					}
 					json_t *pl = json_object();
