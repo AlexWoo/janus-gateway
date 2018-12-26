@@ -1464,6 +1464,8 @@ static void janus_videoroom_publisher_free(const janus_refcount *p_ref) {
 	janus_videoroom_publisher *p = janus_refcount_containerof(p_ref, janus_videoroom_publisher, ref);
 	g_free(p->display);
 	p->display = NULL;
+	g_free(p->uid);
+	p->uid = NULL;
 	g_free(p->sdp);
 	p->sdp = NULL;
 	g_free(p->recording_base);
