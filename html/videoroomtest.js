@@ -63,6 +63,8 @@ var mypvtid = null;
 var feeds = [];
 var bitrateTimer = [];
 
+var test = 0;
+
 var doSimulcast = (getQueryStringValue("simulcast") === "yes" || getQueryStringValue("simulcast") === "true");
 
 $(document).ready(function() {
@@ -402,7 +404,8 @@ function publishOwnFeed(useAudio) {
 			success: function(jsep) {
 				Janus.debug("Got publisher SDP!");
 				Janus.debug(jsep);
-				var publish = { "request": "configure", "audio": useAudio, "video": true };
+				var publish = { "request": "configure", "audio": useAudio, "video": true, "renegotype": "test" + test.toString(10) };
+				test++;
 				// You can force a specific codec to use when publishing by using the
 				// audiocodec and videocodec properties, for instance:
 				// 		publish["audiocodec"] = "opus"

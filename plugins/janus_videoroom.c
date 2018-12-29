@@ -1340,6 +1340,7 @@ typedef struct janus_videoroom_publisher {
 	gchar *uid;			/* user defined user_id */
 	gchar *bridgeid;	/* for bridge, if bridgeid is same as new publisher, do not notify participant */
 	gchar *sdp;			/* The SDP this publisher negotiated, if any */
+	gchar *renegotype;	/* The SDP this publisher negotiated, if any */
 	gboolean audio, video, data;		/* Whether audio, video and/or data is going to be sent by this publisher */
 	janus_audiocodec acodec;	/* Audio codec this publisher is using */
 	janus_videocodec vcodec;	/* Video codec this publisher is using */
@@ -1471,6 +1472,8 @@ static void janus_videoroom_publisher_free(const janus_refcount *p_ref) {
 	p->bridgeid = NULL;
 	g_free(p->sdp);
 	p->sdp = NULL;
+	g_free(p->renegotype);
+	p->renegotype = NULL;
 	g_free(p->recording_base);
 	p->recording_base = NULL;
 	janus_recorder_destroy(p->arc);
@@ -2137,6 +2140,9 @@ static void janus_videoroom_participant_joining(janus_videoroom_publisher *p) {
 		}
 		if (p->bridgeid) {
 			json_object_set_new(user, "bridgeid", json_string(p->bridgeid));
+		}
+		if (p->renegotype) {
+			json_object_set_new(user, "renegotype", json_string(p->renegotype));
 		}
 		json_object_set_new(event, "videoroom", json_string("event"));
 		json_object_set_new(event, "room", json_integer(p->room_id));
@@ -4455,6 +4461,8 @@ static void *janus_videoroom_handler(void *data) {
 				const char *uid_text = uid ? json_string_value(uid) : NULL;
 				json_t *bridgeid = json_object_get(root, "bridgeid");
 				const char *bridgeid_text = bridgeid ? json_string_value(bridgeid) : NULL;
+				json_t *renegotype = json_object_get(root, "renegotype");
+				const char *renegotype_text = renegotype ? json_string_value(renegotype) : NULL;
 				if(id) {
 					user_id = json_integer_value(id);
 					if(g_hash_table_lookup(videoroom->participants, &user_id) != NULL) {
@@ -4501,6 +4509,7 @@ static void *janus_videoroom_handler(void *data) {
 				publisher->uid = uid_text ? g_strdup(uid_text) : NULL;
 				publisher->bridgeid = bridgeid_text ? g_strdup(bridgeid_text) : NULL;
 				publisher->sdp = NULL;		/* We'll deal with this later */
+				publisher->renegotype = renegotype_text ? g_strdup(renegotype_text) : NULL;
 				publisher->audio = FALSE;	/* We'll deal with this later */
 				publisher->video = FALSE;	/* We'll deal with this later */
 				publisher->data = FALSE;	/* We'll deal with this later */
@@ -4600,6 +4609,8 @@ static void *janus_videoroom_handler(void *data) {
 						json_object_set_new(pl, "display", json_string(p->display));
 					if(p->uid != NULL)
 						json_object_set_new(pl, "uid", json_string(p->uid));
+					if(p->renegotype != NULL)
+						json_object_set_new(pl, "renegotype", json_string(p->renegotype));
 					if(p->audio)
 						json_object_set_new(pl, "audio_codec", json_string(janus_audiocodec_name(p->acodec)));
 					if(p->video)
@@ -4747,6 +4758,10 @@ static void *janus_videoroom_handler(void *data) {
 					json_object_set_new(event, "id", json_integer(feed_id));
 					if(publisher->display)
 						json_object_set_new(event, "display", json_string(publisher->display));
+					if(publisher->uid)
+						json_object_set_new(event, "uid", json_string(publisher->uid));
+					if(publisher->renegotype)
+						json_object_set_new(event, "renegotype", json_string(publisher->renegotype));
 					if(legacy)
 						json_object_set_new(event, "warning", json_string("Deprecated use of 'listener' ptype, update to the new 'subscriber' ASAP"));
 					session->participant_type = janus_videoroom_p_type_subscriber;
@@ -4847,6 +4862,7 @@ static void *janus_videoroom_handler(void *data) {
 					janus_refcount_decrease(&participant->ref);
 					goto error;
 				}
+				json_t *renegotype = json_object_get(root, "renegotype");
 				json_t *audio = json_object_get(root, "audio");
 				json_t *audiocodec = json_object_get(root, "audiocodec");
 				json_t *video = json_object_get(root, "video");
@@ -4858,6 +4874,10 @@ static void *janus_videoroom_handler(void *data) {
 				json_t *recfile = json_object_get(root, "filename");
 				json_t *display = json_object_get(root, "display");
 				json_t *update = json_object_get(root, "update");
+				if(renegotype) {
+					const char *renegotype_text = renegotype ? json_string_value(renegotype) : NULL;
+					participant->renegotype = renegotype_text ? g_strdup(renegotype_text) : NULL;
+				}
 				if(audio) {
 					gboolean audio_active = json_is_true(audio);
 					if(session->started && audio_active && !participant->audio_active) {
@@ -5002,6 +5022,10 @@ static void *janus_videoroom_handler(void *data) {
 				json_object_set_new(event, "videoroom", json_string("event"));
 				json_object_set_new(event, "room", json_integer(participant->room_id));
 				json_object_set_new(event, "configured", json_string("ok"));
+				if (participant->renegotype) {
+					json_object_set_new(event, "renegotype", json_string(participant->renegotype));
+				}
+				JANUS_LOG(LOG_WARN, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!publish configure\n");
 				/* Also notify event handlers */
 				if(notify_events && gateway->events_is_enabled()) {
 					json_t *info = json_object();
@@ -5233,6 +5257,10 @@ static void *janus_videoroom_handler(void *data) {
 				json_object_set_new(event, "videoroom", json_string("event"));
 				json_object_set_new(event, "room", json_integer(subscriber->room_id));
 				json_object_set_new(event, "configured", json_string("ok"));
+				if (publisher->renegotype) {
+					json_object_set_new(event, "renegotype", json_string(publisher->renegotype));
+				}
+				JANUS_LOG(LOG_WARN, "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!subscribe configure\n");
 				/* The user may be interested in an ICE restart */
 				gboolean do_restart = restart ? json_is_true(restart) : FALSE;
 				gboolean do_update = update ? json_is_true(update) : FALSE;
