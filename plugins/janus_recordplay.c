@@ -711,7 +711,7 @@ int janus_recordplay_init(janus_callbacks *callback, const char *config_path) {
 	/* Create the folder, if needed */
 	struct stat st = {0};
 	if(stat(recordings_path, &st) == -1) {
-		int res = janus_mkdir(recordings_path, 0755);
+		int res = janus_mkdir(recordings_path, 0777);
 		JANUS_LOG(LOG_VERB, "Creating folder: %d\n", res);
 		if(res != 0) {
 			JANUS_LOG(LOG_ERR, "%s", strerror(errno));
