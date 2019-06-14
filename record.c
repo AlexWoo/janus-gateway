@@ -136,7 +136,7 @@ janus_recorder *janus_recorder_create(const char *dir, const char *codec, const 
 		if(err == -1) {
 			if(ENOENT == errno) {
 				/* Directory does not exist, try creating it */
-				if(janus_mkdir(rec_dir, 0755) < 0) {
+				if(janus_mkdir(rec_dir, 0777) < 0) {
 					JANUS_LOG(LOG_ERR, "mkdir error: %d\n", errno);
 					return NULL;
 				}
